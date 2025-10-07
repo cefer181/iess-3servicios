@@ -1,0 +1,53 @@
+# Compose v3.9: orquesta múltiples contenedores para levantar todo el proyecto.
+version: "3.9"
+
+services:
+  # --- Servicio de Base de Datos (PostgreSQL) ---
+  db:
+    image: postgres:15              # Imagen oficial estable
+    environment:
+      POSTGRES_DB: bankdb           # Nombre de la BD
+      POSTGRES_USER: bankuser       # Usuario
+      POSTGRES_PASSWORD: bankpass   # Password
+    ports:
+      - "5432:5432"                 # Expone el puerto 5432 al host (opcional)
+    volumes:
+      - db_data:/var/lib/postgresql/data           # Volumen persistente de datos
+      - ./BaseDatos.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      # ↑ Script SQL que se ejecuta automáticamente al iniciar el contenedor
+
+  # --- Servicio de API (Quarkus) ---
+  api:
+    build:
+      context: ./backend            # Carpeta del proyecto Quarkus
+      dockerfile: Dockerfile.jvm    # Dockerfile (modo JVM). Cambia a Dockerfile.native para GraalVM
+    environment:
+      # Variables de conexión que el backend leerá
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://db:5432/bankdb
+      QUARKUS_DATASOURCE_USERNAME: bankuser
+      QUARKUS_DATASOURCE_PASSWORD: bankpass
+      # Habilitar CORS para que el front (puerto 3000) pueda consumir la API
+      QUARKUS_HTTP_CORS: "true"
+      QUARKUS_HTTP_CORS_ORIGINS: http://localhost:3000,http://web:3000
+    depends_on:
+      - db                          # Arranca después de la base
+    ports:
+      - "8080:8080"                 # Expone Swagger/UI y endpoints
+
+  # --- Servicio de Frontend (Next.js) ---
+  web:
+    build:
+      context: ./frontend           # Carpeta del proyecto Next.js
+      dockerfile: Dockerfile        # Dockerfile del front
+      args:
+        NEXT_PUBLIC_API_BASE: http://api:8080  # URL interna del servicio 'api'
+    environment:
+      PORT: 3000                    # Puerto que usará Next en el contenedor
+    depends_on:
+      - api                         # Arranca después de la API
+    ports:
+      - "3000:3000"                 # Expone el front al host
+
+# Volumen persistente para Postgres
+volumes:
+  db_data:

@@ -1,0 +1,29 @@
+# ============================
+# Backend Quarkus (modo JVM)
+# Multi-stage build con Maven
+# ============================
+
+# Etapa 1: compilar con Maven y JDK 21
+FROM maven:3.9-eclipse-temurin-21 AS build
+WORKDIR /project
+
+# Copiamos pom.xml primero para cachear dependencias
+COPY pom.xml .
+RUN mvn -q -DskipTests dependency:go-offline || true
+# ↑ '|| true' evita fallo si todavía no tienes pom.xml
+
+# Copiamos el código cuando exista
+COPY src ./src
+RUN mvn -DskipTests package || true
+# ↑ Si aún no hay código, no falla la imagen
+
+# Etapa 2: runtime con JRE 21
+FROM eclipse-temurin:21-jre AS runtime
+WORKDIR /work/
+# Copia artefactos de Quarkus (fast-jar)
+COPY --from=build /project/target/quarkus-app/ /work/ 2>/dev/null || true
+EXPOSE 8080
+ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0"
+
+# Arranca la app si existe el jar, si no, deja mensaje y mantiene el contenedor
+CMD [ "sh", "-c", "if [ -f /work/quarkus-run.jar ]; then java $JAVA_OPTS -jar /work/quarkus-run.jar; else echo 'Quarkus aún no está construido. Agrega pom.xml y src, luego reconstruye.' && tail -f /dev/null; fi" ]

@@ -1,5 +1,4 @@
 # Compose v3.9: orquesta múltiples contenedores para levantar todo el proyecto.
-version: "3.9"
 
 services:
   # --- Servicio de Base de Datos (PostgreSQL) ---

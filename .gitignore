@@ -1,0 +1,30 @@
+# === Java / Maven / Quarkus ===
+target/
+*.log
+*.iml
+.idea/
+.project
+.classpath
+.settings/
+.mvn/wrapper/maven-wrapper.jar
+
+# === Node / Next.js ===
+node_modules/
+.npm/
+.next/
+out/
+coverage/
+*.local
+.env.local
+.env.development.local
+.env.production.local
+.env.test.local
+
+# === Docker ===
+*.pid
+*.seed
+# evitar subir volúmenes o archivos temporales
+
+# === OS ===
+.DS_Store
+Thumbs.db

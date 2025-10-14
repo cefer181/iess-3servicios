@@ -2,49 +2,53 @@ package ec.iess.service;
 
 import ec.iess.domain.Cuenta;
 import ec.iess.domain.Movimiento;
-import ec.iess.repo.CuentaRepo;
-import ec.iess.repo.MovimientoRepo;
+import ec.iess.repository.CuentaRepository;
+import ec.iess.repository.MovimientoRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.WebApplicationException;
-import jakarta.ws.rs.core.Response;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 
 @ApplicationScoped
 public class MovimientoService {
 
-    @Inject CuentaRepo cuentaRepo;
-    @Inject MovimientoRepo movimientoRepo;
+    @Inject
+    MovimientoRepository movimientoRepository;
+
+    @Inject
+    CuentaRepository cuentaRepository;
 
     @Transactional
-    public Movimiento registrar(Movimiento m) {
-        // Cargar cuenta actualizada
-        Cuenta c = cuentaRepo.findById(m.getCuenta().getId());
-        if (c == null || !Boolean.TRUE.equals(c.getEstado())) {
-            throw new WebApplicationException("Cuenta no válida o inactiva", Response.Status.BAD_REQUEST);
+    public Movimiento registrar(Long cuentaId, String tipo, BigDecimal monto) {
+        Cuenta cuenta = cuentaRepository.findById(cuentaId);
+        if (cuenta == null) {
+            throw new WebApplicationException("Cuenta no encontrada", 404);
         }
 
-        BigDecimal saldo = c.getSaldo() == null ? BigDecimal.ZERO : c.getSaldo();
-        BigDecimal valor = m.getValor();
+        BigDecimal delta = "CREDITO".equalsIgnoreCase(tipo)
+                ? monto
+                : monto.negate();
 
-        if ("DEBITO".equalsIgnoreCase(m.getTipo())) {
-            BigDecimal nuevo = saldo.subtract(valor);
-            // Regla: no permitir saldo negativo
-            if (nuevo.compareTo(BigDecimal.ZERO) < 0) {
-                throw new WebApplicationException("Saldo no disponible", 422);
-            }
-            c.setSaldo(nuevo);
-        } else if ("CREDITO".equalsIgnoreCase(m.getTipo())) {
-            c.setSaldo(saldo.add(valor));
-        } else {
-            throw new WebApplicationException("Tipo de movimiento inválido", Response.Status.BAD_REQUEST);
+        BigDecimal nuevoSaldo = cuenta.getSaldo().add(delta);
+        if (nuevoSaldo.compareTo(BigDecimal.ZERO) < 0) {
+            throw new WebApplicationException("Saldo no disponible", 400);
         }
 
-        // Persistir ambos (cuenta y movimiento)
-        movimientoRepo.persist(m);
-        // Panache sincroniza al finalizar la transacción
+        Movimiento m = new Movimiento();
+        m.setCuenta(cuenta);
+        m.setTipo("CREDITO".equalsIgnoreCase(tipo) ? "CREDITO" : "DEBITO");
+        m.setMonto(monto);
+        m.setSaldoPosterior(nuevoSaldo);
+        m.setFecha(OffsetDateTime.now());
+
+        movimientoRepository.persist(m);
+        cuenta.setSaldo(nuevoSaldo);
+        cuentaRepository.persist(cuenta);
+
         return m;
     }
 }
+

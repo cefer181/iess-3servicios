@@ -1,30 +1,20 @@
-# ============================
-# Frontend Next.js (Node 20)
-# Dockerfile tolerante a que aún no exista el proyecto
-# ============================
-
-# Etapa deps: instala dependencias si hay package.json
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package*.json ./ 2>/dev/null || true
-RUN [ -f package.json ] && (npm ci || npm i) || true
-
-# Etapa build: compila Next si existe
+# --- Build ---
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules 2>/dev/null || true
+COPY package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY . .
-ARG NEXT_PUBLIC_API_BASE=http://localhost:8080
-ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
-RUN [ -f package.json ] && npm run build || echo "Pendiente crear proyecto Next.js"
+ARG NEXT_PUBLIC_API_BASE
+ENV NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE}
+RUN npm run build
 
-# Etapa run: sirve la app si existe
-FROM node:20-alpine AS runner
+# --- Runtime ---
+FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/.next ./.next 2>/dev/null || true
-COPY --from=builder /app/public ./public 2>/dev/null || true
-COPY package*.json ./ 2>/dev/null || true
-RUN [ -f package.json ] && npm ci --omit=dev || true
+COPY --from=builder /app/package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
 EXPOSE 3000
-CMD [ "sh", "-c", "if [ -f package.json ]; then npm start; else echo 'Front aún no está creado. Agrega Next.js y reconstruye.' && tail -f /dev/null; fi" ]
+CMD ["npm","run","start","--","-p","3000"]

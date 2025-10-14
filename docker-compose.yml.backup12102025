@@ -1,0 +1,58 @@
+# Compose v3.9: orquesta múltiples contenedores para levantar todo el proyecto.
+
+services:
+  # --- Servicio de Base de Datos (PostgreSQL) ---
+  db:
+    image: postgres:15              # Imagen oficial estable
+    environment:
+      POSTGRES_DB: bankdb           # Nombre de la BD
+      POSTGRES_USER: bankuser       # Usuario
+      POSTGRES_PASSWORD: bankpass   # Password
+    ports:
+      - "5432:5432"                 # Expone el puerto 5432 al host (opcional)
+    volumes:
+      - db_data:/var/lib/postgresql/data           # Volumen persistente de datos
+      - ./BaseDatos.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      # ↑ Script SQL que se ejecuta automáticamente al iniciar el contenedor
+
+  # --- Servicio de API (Quarkus) ---
+    api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.jvm
+    image: iess-api
+    container_name: iess-api-1
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+    environment:
+      - QUARKUS_HTTP_CORS=true
+      - QUARKUS_HTTP_CORS_ORIGINS=http://192.168.100.154:3000
+      - QUARKUS_HTTP_CORS_METHODS=GET,POST,PUT,DELETE,OPTIONS
+      - QUARKUS_HTTP_CORS_HEADERS=accept,origin,authorization,content-type,x-requested-with
+      - QUARKUS_HTTP_CORS_EXPOSED_HEADERS=location,link
+      - QUARKUS_HTTP_CORS_ACCESS_CONTROL_ALLOW_CREDENTIALS=true
+
+    depends_on:
+      - db                          # Arranca después de la base
+    ports:
+      - "8080:8080"                 # Expone Swagger/UI y endpoints
+
+  # --- Servicio de Frontend (Next.js) ---
+  web:
+    build:
+      context: ./frontend           # Carpeta del proyecto Next.js
+      dockerfile: Dockerfile        # Dockerfile del front
+      args:
+        NEXT_PUBLIC_API_BASE: http://192.168.100.154:8080  # URL interna del servicio 'api'
+    image: iess-frontend
+    container_name: iess-web-1
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+# Volumen persistente para Postgres
+volumes:
+  db_data:

@@ -2,36 +2,49 @@ package ec.iess.domain;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 @Entity
 @Table(name = "movimientos")
 public class Movimiento {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "cuenta_id")
     private Cuenta cuenta;
 
-    @Column(nullable = false, length = 20)
-    private String tipo; // CREDITO | DEBITO
+    @Column(name = "tipo", nullable = false, length = 20) // 'CREDITO' | 'DEBITO'
+    private String tipo;
 
-    @Column(nullable = false, precision = 18, scale = 2)
-    private BigDecimal valor;
+    @Column(name = "monto", nullable = false, precision = 18, scale = 2)
+    private BigDecimal monto;
 
-    @Column(nullable = false)
-    private LocalDateTime fecha = LocalDateTime.now();
+    @Column(name = "saldo_posterior", nullable = false, precision = 18, scale = 2)
+    private BigDecimal saldoPosterior;
 
-    // getters/setters
+    @Column(name = "fecha", nullable = false)
+    private OffsetDateTime fecha;
+
+    // getters y setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+
     public Cuenta getCuenta() { return cuenta; }
     public void setCuenta(Cuenta cuenta) { this.cuenta = cuenta; }
+
     public String getTipo() { return tipo; }
     public void setTipo(String tipo) { this.tipo = tipo; }
-    public BigDecimal getValor() { return valor; }
-    public void setValor(BigDecimal valor) { this.valor = valor; }
-    public LocalDateTime getFecha() { return fecha; }
-    public void setFecha(LocalDateTime fecha) { this.fecha = fecha; }
+
+    public BigDecimal getMonto() { return monto; }
+    public void setMonto(BigDecimal monto) { this.monto = monto; }
+
+    public BigDecimal getSaldoPosterior() { return saldoPosterior; }
+    public void setSaldoPosterior(BigDecimal saldoPosterior) { this.saldoPosterior = saldoPosterior; }
+
+    public OffsetDateTime getFecha() { return fecha; }
+    public void setFecha(OffsetDateTime fecha) { this.fecha = fecha; }
 }
+

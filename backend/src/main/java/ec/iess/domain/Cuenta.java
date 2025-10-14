@@ -1,13 +1,15 @@
-import com.fasterxml.jackson.annotation.JsonIgnore;
 package ec.iess.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
 @Entity
 @Table(name = "cuentas")
 public class Cuenta {
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false, unique = true, length = 30)
@@ -24,7 +26,7 @@ public class Cuenta {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "cliente_id")
-    @JsonIgnore
+    @JsonIgnore               // <-- rompe el ciclo JSON
     private Cliente cliente;
 
     // getters/setters
@@ -41,3 +43,4 @@ public class Cuenta {
     public Cliente getCliente() { return cliente; }
     public void setCliente(Cliente cliente) { this.cliente = cliente; }
 }
+
